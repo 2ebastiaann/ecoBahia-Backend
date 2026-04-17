@@ -1,0 +1,4 @@
+#Usa una imagen base oficial de Node.js
+FROM node:18-alpine
+
+WORKDIR C:\Users\User\sistema-backend
