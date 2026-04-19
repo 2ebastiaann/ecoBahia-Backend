@@ -33,20 +33,20 @@ async function registrarVehiculo(req, res) {
   try {
     // 1. Guardar en API del Profesor
     const nuevoVehiculo = await crearVehiculo(req.body);
-    
+
     // 2. Extraer el ID que nos dio el profesor (asumimos que viene en 'id' o 'vehiculo_id' dependiendo de la API)
     // Normalmente devuelven el objeto creado. Si devuelve { id: 123, placa: '...' }
     const idGenerado = nuevoVehiculo.id || nuevoVehiculo.vehiculo_id || req.body.placa; // Fallback a la placa si no hay ID obvio
 
     // 3. Guardar Espejo en Supabase
-    if(idGenerado) {
-       await supabase.from('vehiculos').insert({
-          id_vehiculo: idGenerado.toString(),
-          placa: req.body.placas || req.body.placa, // Dependiendo de cómo le llame tu profesor
-          marca: req.body.marca || 'Generico',
-          modelo: req.body.modelo || 'Desconocido',
-          activo: true
-       });
+    if (idGenerado) {
+      await supabase.from('vehiculos').insert({
+        id_vehiculo: idGenerado.toString(),
+        placa: req.body.placas || req.body.placa, // Dependiendo de cómo le llame tu profesor
+        marca: req.body.marca || 'Generico',
+        modelo: req.body.modelo || 'Desconocido',
+        activo: true
+      });
     }
 
     res.status(201).json(nuevoVehiculo);
@@ -60,7 +60,7 @@ async function editarVehiculo(req, res) {
   try {
     // 1. Actualizar en API Prof
     const vehiculoActualizado = await actualizarVehiculo(req.params.id, req.body);
-    
+
     // 2. Actualizar Espejo en Supabase
     await supabase.from('vehiculos')
       .update({
@@ -81,7 +81,7 @@ async function borrarVehiculo(req, res) {
   try {
     // 1. Eliminar de API Prof
     const resultado = await eliminarVehiculo(req.params.id);
-    
+
     // 2. Eliminar Espejo en Supabase
     await supabase.from('vehiculos')
       .delete()

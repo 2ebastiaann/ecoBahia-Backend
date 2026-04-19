@@ -1,12 +1,32 @@
 const { Recorrido } = require('../maquetas');
 const { Op } = require('sequelize');
+const { obtenerVehiculoPorId } = require('../services/apiRecoleccion');
 
 async function listarRecorridos(req, res) {
   try {
     const recorridos = await Recorrido.findAll({
       order: [['creado_en', 'DESC']]
     });
-    res.json(recorridos);
+
+    // Enriquecer cada recorrido con la placa del vehículo
+    const recorridosEnriquecidos = await Promise.all(
+      recorridos.map(async (r) => {
+        const plain = r.toJSON();
+        try {
+          const vehiculo = await obtenerVehiculoPorId(plain.vehiculo_id);
+          // La API puede devolver { data: { placa, marca, ... } } o directamente { placa, marca, ... }
+          const v = vehiculo.data || vehiculo;
+          plain.vehiculo_placa = v.placa || 'Sin placa';
+          plain.vehiculo_marca = v.marca || '';
+        } catch (e) {
+          plain.vehiculo_placa = 'No disponible';
+          plain.vehiculo_marca = '';
+        }
+        return plain;
+      })
+    );
+
+    res.json(recorridosEnriquecidos);
   } catch (error) {
     res.status(500).json({ mensaje: 'Error al consultar recorridos', detalle: error.message });
   }
