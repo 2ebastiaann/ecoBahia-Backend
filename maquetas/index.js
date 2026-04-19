@@ -30,6 +30,8 @@ PerfilUsuario.belongsTo(Usuario, {
   as: 'usuario'
 });
 
+const Recorrido = require('./recorrido.maqueta');
+
 // Exportar
 module.exports = {
   sequelize,
@@ -39,5 +41,6 @@ module.exports = {
   Horario,
   RutaBarrio,
   Posicion,
-  Barrio
+  Barrio,
+  Recorrido
 };

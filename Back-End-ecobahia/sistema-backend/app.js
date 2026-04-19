@@ -16,12 +16,21 @@ app.use(cors({
 
 app.use(express.json());
 
+// Sincronizar modelos con la BD
+const { sequelize } = require('./maquetas');
+sequelize.sync().then(() => {
+    console.log('✅ Base de datos sincronizada.');
+}).catch(err => {
+    console.error('❌ Error sincronizando BD:', err.message);
+});
+
 // Importar rutas
 app.use('/api/rutas', require('./routes/ruta.routes'));
 app.use('/api/usuarios', require('./routes/usuario.routes'));
 app.use('/api/calles', require('./routes/calles.routes'));
 app.use('/api/vehiculos', require('./routes/vehiculos.routes'));
 app.use('/api/recorridos', require('./routes/recorridos.routes'));
+app.use('/api/recorridos_locales', require('./routes/recorridos_locales.routes'));
 
 // Endpoint raíz
 app.get('/', (req, res) => {

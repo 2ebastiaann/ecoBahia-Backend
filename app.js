@@ -25,7 +25,8 @@ app.use('/api/usuarios', require('./routes/usuario.routes'));
 app.use('/api/calles', require('./routes/calles.routes'));
 app.use('/api/vehiculos', require('./routes/vehiculos.routes'));
 app.use('/api/recorridos', require('./routes/recorridos.routes'));
-app.use('/api/asignaciones', require('./routes/asignaciones.routes')); // NUEVA RUTA
+app.use('/api/asignaciones', require('./routes/asignaciones.routes'));
+app.use('/api/recorridos_locales', require('./routes/recorridos_locales.routes'));
 
 // Endpoint raíz
 app.get('/', (req, res) => {
