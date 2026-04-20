@@ -1,4 +1,4 @@
-const supabase = require('./config/supabase');
+const supabase = require('../config/supabase');
 
 (async () => {
   const { data, error } = await supabase.from('usuarios').select('*').limit(1);
