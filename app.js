@@ -12,7 +12,10 @@ const app = express();
 app.use(cors({
     origin: [
         'http://localhost:4200',
-        'http://ecobahia.eleueleo.com'
+        'http://ecobahia.eleueleo.com',
+        'http://localhost:8100',
+        'capacitor://localhost',
+        'http://localhost'
     ],
     credentials: true
 }));

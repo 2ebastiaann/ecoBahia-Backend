@@ -116,4 +116,22 @@ async function desactivarRecorrido(req, res) {
   }
 }
 
-module.exports = { listarRecorridos, crearRecorrido, desactivarRecorrido };
+async function listarRecorridosPorConductor(req, res) {
+  const { conductorId } = req.params;
+  try {
+    const { data: recorridos, error } = await supabase
+      .from('recorridos')
+      .select('*')
+      .eq('perfil_id', conductorId)
+      .order('creado_en', { ascending: false });
+
+    if (error) throw error;
+    res.json(recorridos || []);
+  } catch (error) {
+    console.error('❌ ERROR GET recorridos por conductor:', error);
+    res.status(500).json({ mensaje: 'Error al consultar recorridos del conductor', detalle: error.message });
+  }
+}
+
+module.exports = { listarRecorridos, crearRecorrido, desactivarRecorrido, listarRecorridosPorConductor };
+
