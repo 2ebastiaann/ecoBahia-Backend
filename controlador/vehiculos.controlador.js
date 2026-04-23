@@ -1,11 +1,13 @@
+// controlador/vehiculos.controlador.js
+
 const {
   obtenerVehiculos,
   obtenerVehiculoPorId,
   crearVehiculo,
   actualizarVehiculo,
   eliminarVehiculo
-} = require('../services/apiRecoleccion');
-const supabase = require('../config/supabase'); // Importar Supabase
+} = require('../services/apiRecoleccion/vehiculos.service');
+const VehiculoRepository = require('../repositories/vehiculo.repository');
 
 // GET todos
 async function listarVehiculos(req, res) {
@@ -34,19 +36,21 @@ async function registrarVehiculo(req, res) {
     // 1. Guardar en API del Profesor
     const nuevoVehiculo = await crearVehiculo(req.body);
 
-    // 2. Extraer el ID que nos dio el profesor (asumimos que viene en 'id' o 'vehiculo_id' dependiendo de la API)
-    // Normalmente devuelven el objeto creado. Si devuelve { id: 123, placa: '...' }
-    const idGenerado = nuevoVehiculo.id || nuevoVehiculo.vehiculo_id || req.body.placa; // Fallback a la placa si no hay ID obvio
+    // 2. Extraer el ID generado
+    const idGenerado = nuevoVehiculo.id || nuevoVehiculo.vehiculo_id || req.body.placa;
 
-    // 3. Guardar Espejo en Supabase
+    // 3. Guardar Espejo en BD local
     if (idGenerado) {
-      await supabase.from('vehiculos').insert({
-        id_vehiculo: idGenerado.toString(),
-        placa: req.body.placas || req.body.placa, // Dependiendo de cómo le llame tu profesor
-        marca: req.body.marca || 'Generico',
-        modelo: req.body.modelo || 'Desconocido',
-        activo: true
-      });
+      try {
+        await VehiculoRepository.create({
+          id_vehiculo: idGenerado,
+          placa: req.body.placas || req.body.placa,
+          marca: req.body.marca,
+          modelo: req.body.modelo
+        });
+      } catch (dbError) {
+        console.error('Error guardando espejo de vehículo en BD local:', dbError);
+      }
     }
 
     res.status(201).json(nuevoVehiculo);
@@ -61,14 +65,16 @@ async function editarVehiculo(req, res) {
     // 1. Actualizar en API Prof
     const vehiculoActualizado = await actualizarVehiculo(req.params.id, req.body);
 
-    // 2. Actualizar Espejo en Supabase
-    await supabase.from('vehiculos')
-      .update({
+    // 2. Actualizar Espejo en BD local
+    try {
+      await VehiculoRepository.update(req.params.id, {
         placa: req.body.placas || req.body.placa,
         marca: req.body.marca,
         modelo: req.body.modelo
-      })
-      .eq('id_vehiculo', req.params.id.toString());
+      });
+    } catch (dbError) {
+      console.error('Error actualizando espejo de vehículo en BD local:', dbError);
+    }
 
     res.json(vehiculoActualizado);
   } catch (error) {
@@ -82,10 +88,12 @@ async function borrarVehiculo(req, res) {
     // 1. Eliminar de API Prof
     const resultado = await eliminarVehiculo(req.params.id);
 
-    // 2. Eliminar Espejo en Supabase
-    await supabase.from('vehiculos')
-      .delete()
-      .eq('id_vehiculo', req.params.id.toString());
+    // 2. Eliminar Espejo en BD local
+    try {
+      await VehiculoRepository.remove(req.params.id);
+    } catch (dbError) {
+      console.error('Error eliminando espejo de vehículo en BD local:', dbError);
+    }
 
     res.json({ mensaje: 'Vehículo eliminado', resultado });
   } catch (error) {

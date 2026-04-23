@@ -1,17 +1,14 @@
 // controlador/recorridos_locales.controlador.js
-const supabase = require('../config/supabase');
+
+const RecorridoRepository = require('../repositories/recorrido.repository');
+const { iniciarRecorrido } = require('../services/apiRecoleccion/recorridos.service');
 
 async function listarRecorridos(req, res) {
   try {
-    const { data: recorridos, error } = await supabase
-      .from('recorridos')
-      .select('*')
-      .order('creado_en', { ascending: false });
-
-    if (error) throw error;
-    res.json(recorridos || []);
+    const recorridos = await RecorridoRepository.findAll();
+    res.json(recorridos);
   } catch (error) {
-    console.error('❌ ERROR GET recorridos (Supabase):', error);
+    console.error('❌ ERROR GET recorridos:', error);
     res.status(500).json({ mensaje: 'Error al consultar recorridos', detalle: error.message });
   }
 }
@@ -25,13 +22,7 @@ async function crearRecorrido(req, res) {
 
   try {
     // 1. Validar que no existan en otro recorrido activo
-    const { data: recorridosActivos, error: errorBusqueda } = await supabase
-      .from('recorridos')
-      .select('ruta_id, vehiculo_id, perfil_id')
-      .eq('activo', true)
-      .or(`ruta_id.eq.${ruta_id},vehiculo_id.eq.${vehiculo_id},perfil_id.eq.${perfil_id}`);
-
-    if (errorBusqueda) throw errorBusqueda;
+    const recorridosActivos = await RecorridoRepository.findActivosConflicto(ruta_id, vehiculo_id, perfil_id);
 
     if (recorridosActivos && recorridosActivos.length > 0) {
       return res.status(400).json({ 
@@ -39,44 +30,24 @@ async function crearRecorrido(req, res) {
       });
     }
 
-    // 2. Guardar en Supabase localmente
-    const { data: nuevo, error } = await supabase
-      .from('recorridos')
-      .insert({
-        ruta_id,
-        vehiculo_id,
-        perfil_id,
-        activo: true // Lo ponemos activo de inmediato ya que se inicia en la API
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    console.log('✅ Recorrido guardado en Supabase:', nuevo.id);
+    // 2. Guardar en BD local
+    const nuevo = await RecorridoRepository.create({ ruta_id, vehiculo_id, perfil_id, activo: true });
+    console.log('✅ Recorrido guardado en BD:', nuevo.id);
 
     // 3. Enviar a la API Externa
-    const externaBaseUrl = process.env.API_VEHICULOS_URL ? process.env.API_VEHICULOS_URL.replace('/vehiculos', '') : 'https://apirecoleccion.gonzaloandreslucio.com/api';
-    const apiUrl = `${externaBaseUrl}/recorridos/iniciar`;
-    
-    console.log('🚀 Enviando a API externa:', apiUrl);
-    
-    const apiResponse = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        ruta_id,
-        vehiculo_id,
-        perfil_id
-      })
-    });
-
-    if (!apiResponse.ok) {
-      const apiErrorText = await apiResponse.text();
-      console.error('⚠️ La API externa devolvió un error:', apiResponse.status, apiErrorText);
-    } else {
-      console.log('✅ Recorrido iniciado exitosamente en la API externa');
+    try {
+      const responseApi = await iniciarRecorrido({ ruta_id, vehiculo_id, perfil_id });
+      console.log('✅ Recorrido iniciado exitosamente en la API externa', responseApi);
+      
+      // Intentar extraer el UUID que devuelve el profesor
+      const id_externo = responseApi.id || responseApi.data?.id || responseApi.recorrido?.id || null;
+      
+      if (id_externo) {
+        await RecorridoRepository.updateExterno(nuevo.id, id_externo);
+        console.log(`✅ Guardado id_externo (${id_externo}) para el recorrido local ${nuevo.id}`);
+      }
+    } catch (apiError) {
+      console.error('⚠️ La API externa devolvió un error:', apiError.message);
     }
 
     res.status(201).json(nuevo);
@@ -90,25 +61,13 @@ async function desactivarRecorrido(req, res) {
   const { id } = req.params;
 
   try {
-    const { data: recorridoActual, error: errorSelect } = await supabase
-      .from('recorridos')
-      .select('id, activo')
-      .eq('id', id)
-      .single();
+    const recorridoActual = await RecorridoRepository.findById(id);
 
-    if (errorSelect) throw errorSelect;
     if (!recorridoActual) return res.status(404).json({ mensaje: 'Recorrido no encontrado' });
     if (!recorridoActual.activo) return res.status(400).json({ mensaje: 'El recorrido ya está finalizado' });
 
     // Desactivar
-    const { data: desactivado, error: errorUpdate } = await supabase
-      .from('recorridos')
-      .update({ activo: false })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (errorUpdate) throw errorUpdate;
+    const desactivado = await RecorridoRepository.desactivar(id);
     res.json({ mensaje: 'Recorrido finalizado', recorrido: desactivado });
   } catch (error) {
     console.error('❌ ERROR PUT desactivar recorrido:', error);
@@ -116,22 +75,33 @@ async function desactivarRecorrido(req, res) {
   }
 }
 
+async function activarRecorrido(req, res) {
+  const { id } = req.params;
+
+  try {
+    const recorridoActual = await RecorridoRepository.findById(id);
+
+    if (!recorridoActual) return res.status(404).json({ mensaje: 'Recorrido no encontrado' });
+    if (recorridoActual.activo) return res.status(400).json({ mensaje: 'El recorrido ya está activo' });
+
+    // Activar
+    const activado = await RecorridoRepository.activar(id);
+    res.json({ mensaje: 'Recorrido activado', recorrido: activado });
+  } catch (error) {
+    console.error('❌ ERROR PUT activar recorrido:', error);
+    res.status(500).json({ mensaje: 'Error al activar', detalle: error.message });
+  }
+}
+
 async function listarRecorridosPorConductor(req, res) {
   const { conductorId } = req.params;
   try {
-    const { data: recorridos, error } = await supabase
-      .from('recorridos')
-      .select('*')
-      .eq('perfil_id', conductorId)
-      .order('creado_en', { ascending: false });
-
-    if (error) throw error;
-    res.json(recorridos || []);
+    const recorridos = await RecorridoRepository.findByConductor(conductorId);
+    res.json(recorridos);
   } catch (error) {
     console.error('❌ ERROR GET recorridos por conductor:', error);
     res.status(500).json({ mensaje: 'Error al consultar recorridos del conductor', detalle: error.message });
   }
 }
 
-module.exports = { listarRecorridos, crearRecorrido, desactivarRecorrido, listarRecorridosPorConductor };
-
+module.exports = { listarRecorridos, crearRecorrido, desactivarRecorrido, activarRecorrido, listarRecorridosPorConductor };

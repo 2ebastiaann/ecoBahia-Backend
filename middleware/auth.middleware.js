@@ -14,7 +14,7 @@ function verificarToken(req, res, next) {
     }
 
     const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || '12345fallback');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     // Adjuntar datos del usuario decodificado al request
     req.user = decoded; // { id, id_rol, iat, exp }

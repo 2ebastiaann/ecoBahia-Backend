@@ -1,4 +1,4 @@
-const { iniciarRecorrido, finalizarRecorrido } = require('../services/apiRecoleccion');
+const { iniciarRecorrido, finalizarRecorrido } = require('../services/apiRecoleccion/recorridos.service');
 
 // POST iniciar recorrido
 async function registrarInicioRecorrido(req, res) {

@@ -1,11 +1,11 @@
 // controlador/usuarios.controlador.js
 
-const supabase = require('../config/supabase');
+const UsuarioRepository = require('../repositories/usuario.repository');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 // ============================================
-// Registrar usuario (Supabase)
+// Registrar usuario
 // ============================================
 exports.registrarUsuario = async (req, res) => {
   try {
@@ -16,14 +16,7 @@ exports.registrarUsuario = async (req, res) => {
     }
 
     // Verificar si el usuario ya existe
-    const { data: existeUsuario, error: errorExiste } = await supabase
-      .from('usuarios')
-      .select('email')
-      .eq('email', email)
-      .maybeSingle();
-
-    if (errorExiste) throw errorExiste;
-
+    const existeUsuario = await UsuarioRepository.existsByEmail(email);
     if (existeUsuario) {
       return res.status(400).json({ error: 'El usuario ya existe' });
     }
@@ -31,20 +24,14 @@ exports.registrarUsuario = async (req, res) => {
     // Crear hash de contraseña
     const hash = await bcrypt.hash(password, 10);
 
-    // Insertar usuario en Supabase
-    const { data: nuevoUsuario, error: errorInsert } = await supabase
-      .from('usuarios')
-      .insert({
-        email: email,
-        password_hash: hash,
-        id_rol: id_rol || 3,
-        nombre: nombre,
-        apellido: apellido
-      })
-      .select()
-      .single();
-
-    if (errorInsert) throw errorInsert;
+    // Insertar usuario
+    const nuevoUsuario = await UsuarioRepository.create({
+      email,
+      password_hash: hash,
+      id_rol: id_rol || 3,
+      nombre,
+      apellido
+    });
 
     res.status(201).json({
       ok: true,
@@ -66,7 +53,7 @@ exports.registrarUsuario = async (req, res) => {
 
 
 // ============================================
-// Login usuario (Supabase)
+// Login usuario (web - cualquier rol)
 // ============================================
 exports.logearUsuario = async (req, res) => {
   try {
@@ -77,13 +64,7 @@ exports.logearUsuario = async (req, res) => {
     }
 
     // Buscar usuario
-    const { data: usuario, error: errorSelect } = await supabase
-      .from('usuarios')
-      .select('*')
-      .eq('email', email)
-      .maybeSingle();
-
-    if (errorSelect) throw errorSelect;
+    const usuario = await UsuarioRepository.findByEmail(email);
     if (!usuario) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
@@ -97,7 +78,7 @@ exports.logearUsuario = async (req, res) => {
     // Crear token
     const token = jwt.sign(
       { id: usuario.id_usuario, id_rol: usuario.id_rol },
-      process.env.JWT_SECRET || '12345fallback',
+      process.env.JWT_SECRET,
       { expiresIn: '2h' }
     );
 
@@ -118,16 +99,11 @@ exports.logearUsuario = async (req, res) => {
 };
 
 // ============================================
-// Listar Conductores (Supabase)
+// Listar Conductores
 // ============================================
 exports.listarConductores = async (req, res) => {
   try {
-    const { data: conductores, error } = await supabase
-      .from('usuarios')
-      .select('id_usuario, email, nombre, apellido')
-      .eq('id_rol', 2);
-
-    if (error) throw error;
+    const conductores = await UsuarioRepository.findConductores();
     res.json(conductores);
   } catch (error) {
     console.error("❌ Error listar conductores:", error);
@@ -136,7 +112,7 @@ exports.listarConductores = async (req, res) => {
 };
 
 // ============================================
-// Actualizar Conductor (Supabase)
+// Actualizar Conductor
 // ============================================
 exports.actualizarConductor = async (req, res) => {
   try {
@@ -151,14 +127,7 @@ exports.actualizarConductor = async (req, res) => {
       updates.password_hash = hash;
     }
 
-    const { data, error } = await supabase
-      .from('usuarios')
-      .update(updates)
-      .eq('id_usuario', id)
-      .select()
-      .single();
-
-    if (error) throw error;
+    const data = await UsuarioRepository.update(id, updates);
     res.json({ ok: true, msg: 'Conductor actualizado', usuario: data });
   } catch (error) {
     console.error("❌ Error actualizar conductor:", error);
@@ -167,18 +136,12 @@ exports.actualizarConductor = async (req, res) => {
 };
 
 // ============================================
-// Eliminar Conductor (Supabase)
+// Eliminar Conductor
 // ============================================
 exports.eliminarConductor = async (req, res) => {
   try {
     const { id } = req.params;
-
-    const { error } = await supabase
-      .from('usuarios')
-      .delete()
-      .eq('id_usuario', id);
-
-    if (error) throw error;
+    await UsuarioRepository.remove(id);
     res.json({ ok: true, msg: 'Conductor eliminado' });
   } catch (error) {
     console.error("❌ Error eliminar conductor:", error);
@@ -198,13 +161,7 @@ exports.logearConductor = async (req, res) => {
     }
 
     // Buscar usuario
-    const { data: usuario, error: errorSelect } = await supabase
-      .from('usuarios')
-      .select('*')
-      .eq('email', email)
-      .maybeSingle();
-
-    if (errorSelect) throw errorSelect;
+    const usuario = await UsuarioRepository.findByEmail(email);
     if (!usuario) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
@@ -223,7 +180,7 @@ exports.logearConductor = async (req, res) => {
     // Crear token
     const token = jwt.sign(
       { id: usuario.id_usuario, id_rol: usuario.id_rol },
-      process.env.JWT_SECRET || '12345fallback',
+      process.env.JWT_SECRET,
       { expiresIn: '8h' }
     );
 
@@ -253,13 +210,7 @@ exports.obtenerPerfil = async (req, res) => {
     // req.user viene del middleware verificarToken
     const userId = req.user.id;
 
-    const { data: usuario, error } = await supabase
-      .from('usuarios')
-      .select('id_usuario, email, id_rol, nombre, apellido, fecha_creacion')
-      .eq('id_usuario', userId)
-      .single();
-
-    if (error) throw error;
+    const usuario = await UsuarioRepository.findById(userId);
     if (!usuario) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
@@ -270,4 +221,3 @@ exports.obtenerPerfil = async (req, res) => {
     res.status(500).json({ error: 'Error al obtener perfil' });
   }
 };
-

@@ -1,5 +1,8 @@
-const { obtenerRutas, obtenerRutaPorId , crearRuta } = require('../services/apiRecoleccion');
-const supabase = require('../config/supabase');
+// controlador/ruta.controlador.js
+
+const { obtenerRutas, obtenerRutaPorId, crearRuta } = require('../services/apiRecoleccion/rutas.service');
+const RutaRepository = require('../repositories/ruta.repository');
+
 async function listarRutas(req, res) {
   try {
     const rutas = await obtenerRutas();
@@ -12,7 +15,7 @@ async function listarRutas(req, res) {
 
 async function mostrarRutaPorId(req, res) {
   try {
-    const ruta = await obtenerRutaPorId (req.params.id);
+    const ruta = await obtenerRutaPorId(req.params.id);
     res.json(ruta);
   } catch (error) {
     res.status(404).json({ mensaje: 'Ruta no encontrada', detalle: error.message });
@@ -34,7 +37,7 @@ async function registrarRuta(req, res) {
   try {
     const nuevaRuta = await crearRuta(req.body);
     
-    // GUARDADO DUAL: Supabase Local
+    // GUARDADO DUAL: BD Local
     // Podría estar dentro de data.id, id, o id_ruta.
     const idGenerado = nuevaRuta.data?.id || nuevaRuta.id || nuevaRuta.ruta_id || nuevaRuta.id_ruta || Object.values(nuevaRuta).find(val => typeof val === 'string' && val.length > 30);
     
@@ -42,27 +45,19 @@ async function registrarRuta(req, res) {
        console.error('No se pudo encontrar el ID de la ruta en la respuesta de la API:', nuevaRuta);
     }
 
-    if (idGenerado && shape) {
-      // Guardar con geometría directa
-      const { error: supError } = await supabase.from('rutas').insert({
-        id_rutas: idGenerado,
-        nombre: nombre_ruta,
-        color_hex: req.body.color_hex || '#3388ff',
-        perfil_id: perfil_id,
-        activo: true,
-        // PostGIS en Supabase acepta GeoJSON directo si se manda como texto o json
-        shape: shape 
-      });
-      if (supError) console.error('Error guardando ruta en Supabase:', supError);
-    } else if (idGenerado && calles_ids) {
-      const { error: supError } = await supabase.from('rutas').insert({
-        id_rutas: idGenerado,
-        nombre: nombre_ruta,
-        color_hex: req.body.color_hex || '#3388ff',
-        perfil_id: perfil_id,
-        activo: true
-      });
-      if (supError) console.error('Error guardando ruta (vía calles_ids) en Supabase:', supError);
+    if (idGenerado) {
+      try {
+        await RutaRepository.create({
+          id_rutas: idGenerado,
+          nombre: nombre_ruta,
+          color_hex: req.body.color_hex || '#3388ff',
+          perfil_id: perfil_id,
+          activo: true,
+          shape: shape || null
+        });
+      } catch (dbError) {
+        console.error('Error guardando ruta en BD local:', dbError);
+      }
     }
 
     res.status(201).json(nuevaRuta);

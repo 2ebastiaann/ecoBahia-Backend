@@ -1,5 +1,5 @@
 // controlador/calles.controlador.js
-const { obtenerCalles, obtenerCallePorId } = require('../services/apiRecoleccion');
+const { obtenerCalles, obtenerCallePorId } = require('../services/apiRecoleccion/calles.service');
 
 // Listar todas las calles
 async function listarCalles(req, res) {

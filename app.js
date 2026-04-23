@@ -8,15 +8,13 @@ const cors = require('cors');
 
 const app = express();
 
-// Middlewares
+// Orígenes CORS desde variable de entorno
+const corsOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
+  : ['http://localhost:4200', 'http://localhost:8100'];
+
 app.use(cors({
-    origin: [
-        'http://localhost:4200',
-        'http://ecobahia.eleueleo.com',
-        'http://localhost:8100',
-        'capacitor://localhost',
-        'http://localhost'
-    ],
+    origin: corsOrigins,
     credentials: true
 }));
 
@@ -30,6 +28,7 @@ app.use('/api/vehiculos', require('./routes/vehiculos.routes'));
 app.use('/api/recorridos', require('./routes/recorridos.routes'));
 app.use('/api/asignaciones', require('./routes/asignaciones.routes'));
 app.use('/api/recorridos_locales', require('./routes/recorridos_locales.routes'));
+app.use('/api/ubicaciones', require('./routes/ubicaciones.routes'));
 
 // Endpoint raíz
 app.get('/', (req, res) => {
