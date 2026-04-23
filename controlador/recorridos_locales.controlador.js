@@ -35,16 +35,29 @@ async function crearRecorrido(req, res) {
     console.log('✅ Recorrido guardado en BD:', nuevo.id);
 
     // 3. Enviar a la API Externa
+    //    ⚠️ La API del profesor NO tiene registro de conductores, así que
+    //    usamos nuestro PERFIL_ID fijo del .env como identidad ante la API.
+    //    En la BD local se guarda el perfil_id real del conductor.
     try {
-      const responseApi = await iniciarRecorrido({ ruta_id, vehiculo_id, perfil_id });
-      console.log('✅ Recorrido iniciado exitosamente en la API externa', responseApi);
+      const responseApi = await iniciarRecorrido({
+        ruta_id,
+        vehiculo_id,
+        perfil_id: process.env.PERFIL_ID
+      });
+      console.log('✅ Recorrido iniciado en API externa. Respuesta:', JSON.stringify(responseApi));
       
       // Intentar extraer el UUID que devuelve el profesor
       const id_externo = responseApi.id || responseApi.data?.id || responseApi.recorrido?.id || null;
       
       if (id_externo) {
-        await RecorridoRepository.updateExterno(nuevo.id, id_externo);
-        console.log(`✅ Guardado id_externo (${id_externo}) para el recorrido local ${nuevo.id}`);
+        try {
+          await RecorridoRepository.updateExterno(nuevo.id, id_externo);
+          console.log(`✅ Guardado id_externo (${id_externo}) para el recorrido local ${nuevo.id}`);
+        } catch (dbError) {
+          console.error(`❌ ERROR al guardar id_externo en BD. ¿Existe la columna 'id_externo' en la tabla 'recorridos'?`, dbError.message);
+        }
+      } else {
+        console.warn('⚠️ No se pudo extraer id de la respuesta API. Keys:', Object.keys(responseApi));
       }
     } catch (apiError) {
       console.error('⚠️ La API externa devolvió un error:', apiError.message);

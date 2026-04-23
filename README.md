@@ -1,82 +1,126 @@
-# 🌊 EcoBahía - Backend Rest API
+# 🌊 EcoBahía — Backend REST API + WebSockets
 
-Este repositorio aloja la lógica central, base de datos y puentes API del proyecto **EcoBahía**. Está construido utilizando Node.js y Express, comunicándose doblemente con una base de datos propia alojada en **Supabase** y la API externa del entorno universitario proporcionada para mapas y geometría cartográfica.
+Backend centralizado del sistema **EcoBahía** de gestión inteligente de recolección de residuos. Construido con **Node.js + Express + Socket.IO**, se comunica con una base de datos propia en **Supabase (PostgreSQL)** y sincroniza datos con la API externa del entorno universitario.
 
-## 🏗️ Arquitectura y Estructura del Backend (Express)
+## 🧩 Rol en el sistema
 
-La estructura sigue un modelo estándar dividido por responsabilidades (Rutas → Controladores → Servicios).
+| Componente | Función |
+|---|---|
+| 🧠 **Backend** (este repo) | API REST + WebSockets. Centraliza lógica, BD y sincronización externa |
+| 📱 App móvil (Ionic/Angular) | Envía GPS del conductor en tiempo real |
+| 🌐 Frontend web (Angular) | Panel de administrador: gestión y monitoreo en mapa |
+
+---
+
+## 🏗️ Estructura del proyecto
 
 ```text
-C:\Users\LENOVO\Ecobahia-backend\
-├── .env                          ← Configuración secreta y variables de entorno.
-├── app.js                        ← Raíz lógica de Express. Define Middlewares, CORS e inyecta Rutas.
-├── server.js                     ← Punto de entrada de red. Levanta la API escuchando el puerto.
-├── package.json                  ← Listado unificado de dependencias.
+Ecobahia-backend/
+├── .env                            ← Variables de entorno (ver .env.example)
+├── .env.example                    ← Plantilla de variables de entorno
+├── app.js                          ← Configuración de Express (middlewares, CORS, rutas)
+├── server.js                       ← Punto de entrada: levanta HTTP + Socket.IO
+├── DockerFile                      ← Contenedor Docker para despliegue
+├── package.json                    ← Dependencias del proyecto
 │
-├── config/                       ← Configuración de infraestructura
-│   ├── database.js               ← Adaptador agnóstico de base de datos (Supabase actual / PostgreSQL futuro).
-│   └── supabase.js               ← Cliente de base de datos Supabase (No usado directamente por los controladores).
+├── config/                         ← Infraestructura de base de datos
+│   ├── database.js                 ← Adaptador agnóstico (hoy Supabase, mañana PostgreSQL directo)
+│   └── supabase.js                 ← Cliente Supabase (solo usado por database.js)
 │
-├── routes/                       ← Enrutamiento (Endpoints expuestos por la API hacia el Frontend)
-│   ├── asignaciones.routes.js    ← Endpoints REST para asignar vehículo↔conductor y vehículo↔ruta.
-│   ├── calles.routes.js          ← Endpoints GET devolviendo información geométrica de calles.
-│   ├── recorridos.routes.js      ← Endpoints para activar inicio y final de recorridos en el sistema.
-│   ├── recorridos_locales.routes.js ← Endpoints internos para listado de trayectorias activadas.
-│   ├── ruta.routes.js            ← Endpoints REST CRUD para rutas geográficas.
-│   ├── usuario.routes.js         ← Endpoints de Login, validación y gestión de administradores y conductores.
-│   └── vehiculos.routes.js       ← Endpoints para la gestión íntegra del catálogo de los vehículos.
+├── middleware/                     ← Middlewares de Express
+│   └── auth.middleware.js          ← Verificación de JWT en rutas protegidas
 │
-├── controlador/                  ← Controladores (Lógica de negocio y respuesta de la API)
-│   ├── asignaciones.controlador.js ← Gestiona vinculación validando que estén disponibles, usa Repositories.
-│   ├── calles.controlador.js     ← Conecta las solicitudes Front → API externa de red vial vía Servicios.
-│   ├── recorridos.controlador.js ← Puente lógico para inicializar recorridos foráneos.
-│   ├── recorridos_locales.controlador.js ← Verifica recursos disponibles antes de permitir recorrido y sincroniza BD Local y externa.
-│   ├── ruta.controlador.js       ← Guarda las polilíneas de la ruta localmente y en el exterior. 
-│   ├── usuarios.controlador.js   ← Cifra/Descifra (bcrypt), emite Web Tokens JWT y autentica. Llama a Repository.
-│   └── vehiculos.controlador.js  ← Guarda los vehículos generados aplicando esquema híbrido (BD Local + Externo).
+├── routes/                         ← Endpoints REST expuestos
+│   ├── usuario.routes.js           ← Login, registro, perfil, listar conductores
+│   ├── vehiculos.routes.js         ← CRUD de vehículos
+│   ├── ruta.routes.js              ← CRUD de rutas geográficas
+│   ├── asignaciones.routes.js      ← Asignar conductor↔vehículo y vehículo↔ruta
+│   ├── recorridos.routes.js        ← Proxy a la API externa (iniciar/finalizar)
+│   ├── recorridos_locales.routes.js ← Gestión interna de recorridos (crear, activar, desactivar)
+│   ├── ubicaciones.routes.js       ← Historial de posiciones y batch offline
+│   └── calles.routes.js            ← Geometría de calles (API externa)
 │
-├── repositories/                 ← Capa de Datos (Aísla consultas a las tablas mediante 'database.js')
-│   ├── asignacion.repository.js  ← Queries para asignaciones conductor↔vehículo y vehículo↔ruta.
-│   ├── recorrido.repository.js   ← Queries para listar y manejar registros de recorridos activos/históricos.
-│   ├── ruta.repository.js        ← Guarda copias (espejo) de rutas en la BD local.
-│   ├── usuario.repository.js     ← Métodos modulares (findByEmail, create, findConductores, etc.) para usuarios.
-│   └── vehiculo.repository.js    ← Guarda copias (espejo) de vehículos creados para BD local.
+├── controlador/                    ← Lógica de negocio
+│   ├── usuarios.controlador.js     ← Autenticación bcrypt + JWT
+│   ├── vehiculos.controlador.js    ← Sincronización híbrida (BD local + API externa)
+│   ├── ruta.controlador.js         ← Guarda rutas localmente y en la API externa
+│   ├── asignaciones.controlador.js ← Validación de disponibilidad antes de asignar
+│   ├── recorridos.controlador.js   ← Puente hacia la API externa
+│   ├── recorridos_locales.controlador.js ← Crea recorridos en BD + API externa, guarda id_externo
+│   ├── ubicaciones.controlador.js  ← Guardar posiciones GPS (individual y batch)
+│   └── calles.controlador.js       ← Proxy a la API de calles
 │
-├── services/                     ← Consumidor de Tercería y Acceso Red
-│   ├── httpClient.js             ← Cliente HTTP reutilizable con manejo centralizado de errores y cabeceras automáticas (Accept: application/json).
-│   └── apiRecoleccion/           ← Interfaz modular que consume la API del docente:
-│       ├── calles.service.js     ← Peticiones relativas a las Calles.
-│       ├── recorridos.service.js ← Peticiones relativas a manejo remoto de Recorridos.
-│       ├── rutas.service.js      ← Peticiones integrales de Rutas externas.
-│       └── vehiculos.service.js  ← Peticiones integrales de Vehículos externos.
+├── repositories/                   ← Capa de datos (queries a Supabase vía database.js)
+│   ├── usuario.repository.js       ← findByEmail, create, findConductores, etc.
+│   ├── vehiculo.repository.js      ← Espejo local de vehículos
+│   ├── ruta.repository.js          ← Espejo local de rutas
+│   ├── asignacion.repository.js    ← Consultas conductor↔vehículo, vehículo↔ruta
+│   ├── recorrido.repository.js     ← CRUD recorridos + findIdExterno / updateExterno
+│   └── posicion.repository.js      ← Insertar posiciones GPS con geometría PostGIS
 │
-├── sockets/                      ← Comunicación bidireccional en Tiempo Real (WebSockets)
-│   └── tracking.socket.js        ← Middleware de autenticación, recepción de coordenadas (App Móvil), re-emisión a App Web y sincronización oculta de posiciones (fire-and-forget) a la API Externa.
+├── services/                       ← Clientes HTTP para APIs externas
+│   ├── httpClient.js               ← Cliente HTTP reutilizable (fetch + error handling)
+│   └── apiRecoleccion/             ← Consumo de la API externa:
+│       ├── vehiculos.service.js
+│       ├── rutas.service.js
+│       ├── recorridos.service.js    ← iniciarRecorrido, finalizarRecorrido, registrarPosicionExterna
+│       └── calles.service.js
 │
-├── scripts/                      ← Scripts utilitarios (No ejecutados en producción rutinaria)
-│   ├── create-user-remote.js     ← Puente SSH con cliente Postgres puro para intervenciones DB rudas.
-│   └── test-supabase.js          ← Utilidad breve para confirmar respuesta rápida en un PING hacia Supabase.
+├── sockets/                        ← Comunicación en tiempo real
+│   └── tracking.socket.js          ← Recibe GPS del móvil, guarda en BD, reenvía a API, emite a web
+│                                      Incluye caché en memoria de posiciones activas
 │
-└── docs/                         ← Documentación Interna y Guías Técnicas Antiguas/Recientes.
-    ├── DOCUMENTACION_TECNICA.md
-    ├── INSTRUCCIONES_CONEXION.md
-    └── PRUEBA_CONEXION.md
+├── scripts/                        ← Utilidades de desarrollo
+│   ├── create-user-remote.js
+│   └── test-supabase.js
+│
+└── documentacion/                  ← Guías técnicas internas
 ```
 
-## 📡 Arquitectura de Rastreo GPS y Sincronización Externa
+---
 
-El backend maneja un flujo híbrido para el tracking en vivo:
-1. **Memoria Local**: Al recibir `conductor:location`, guarda la latitud/longitud de manera persistente en Supabase (`PosicionRepository`).
-2. **Sincronización Silenciosa**: Utiliza un mapeo de UUIDs (guardando el `id_externo` de la API del profesor en la tabla local `recorridos`) para enviar la posición a la API Externa en segundo plano, sin bloquear el servidor.
-3. **Emisión en Tiempo Real**: Funciona como "Megáfono" (`io.emit`), enviando los eventos `location:update` y `conductor:disconnected` directamente a la App Web Administrativa para actualizar los mapas sin recargar la página.
+## 🗄️ Tablas en Base de Datos
 
-### Ejecutar el Proyecto Backend
+| Tabla | Descripción |
+|---|---|
+| `usuarios` | Administradores y conductores (con bcrypt + JWT) |
+| `vehiculos` | Flota de vehículos (espejo de API externa) |
+| `rutas` | Rutas geográficas con geometría PostGIS |
+| `recorridos` | Asignaciones activas (ruta + vehículo + conductor + id_externo) |
+| `posiciones` | Historial GPS con geometría PostGIS (punto) |
+| `rol` | Roles de usuario (admin, conductor) |
+| `conductor_vehiculo` | Asignación conductor ↔ vehículo |
+| `vehiculo_ruta` | Asignación vehículo ↔ ruta |
+
+---
+
+## 📡 Tracking GPS en Tiempo Real (Socket.IO)
+
+El sistema de tracking es el núcleo de la operación en vivo:
+
+1. **Conductor inicia recorrido** → la app móvil conecta por WebSocket con JWT
+2. **Envío continuo de GPS** → el servidor recibe `{ latitude, longitude, recorrido_id }`
+3. **Procesamiento triple**:
+   - Guarda la posición en la tabla `posiciones` (historial)
+   - Reenvía la posición a la API externa del profesor
+   - Emite la posición a todos los clientes web conectados (broadcast)
+4. **Caché en memoria** → el servidor mantiene un `Map` con la última posición conocida de cada conductor activo. Cuando un nuevo cliente web se conecta, recibe inmediatamente todas las posiciones actuales sin esperar a que los conductores se muevan.
+5. **Desconexión** → al desconectarse un conductor, se limpia su entrada de la caché.
+
+---
+
+## 🚀 Ejecutar el proyecto
 
 ```bash
-# Para entorno de desarrollo (con recarga automática):
+# Instalar dependencias
+npm install
+
+# Copiar y configurar variables de entorno
+cp .env.example .env
+
+# Desarrollo (con recarga automática)
 npm run dev
 
-# Para entorno normal:
-npm run start
+# Producción
+npm start
 ```
-Confiormarás el levantamiento si la terminal devuelve un status en el puerto `:3007`.

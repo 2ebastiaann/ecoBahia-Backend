@@ -7,6 +7,13 @@ const db = require('../config/database');
 
 const VehiculoRepository = {
   /**
+   * Obtener todos los vehículos de la BD local
+   */
+  async findAll() {
+    return db.findAll('vehiculos');
+  },
+
+  /**
    * Guardar espejo de vehículo en BD local
    */
   async create({ id_vehiculo, placa, marca, modelo, activo = true }) {

@@ -4,6 +4,9 @@ const PosicionRepository = require('../repositories/posicion.repository');
 const RecorridoRepository = require('../repositories/recorrido.repository');
 const { registrarPosicionExterna } = require('../services/apiRecoleccion/recorridos.service');
 
+// Caché en memoria para guardar la última posición conocida de los conductores activos
+const activeTrucksCache = new Map();
+
 module.exports = (io) => {
   // Middleware de autenticación para Socket.IO
   io.use((socket, next) => {
@@ -36,11 +39,19 @@ module.exports = (io) => {
   io.on('connection', (socket) => {
     console.log(`📡 Cliente conectado [${socket.id}] - Usuario ID: ${socket.user?.id}`);
 
-    // Emitir evento de conexión de conductor
+    // Emitir evento de conexión de conductor a los demás
     if (socket.user) {
       io.emit('conductor:connected', { 
         conductor_id: socket.user.id, 
         timestamp: Date.now() 
+      });
+    }
+
+    // ⭐ FIX: Cuando un nuevo cliente (ej. panel web) se conecta,
+    // le enviamos inmediatamente las últimas posiciones conocidas.
+    if (activeTrucksCache.size > 0) {
+      activeTrucksCache.forEach((data) => {
+        socket.emit('location:update', data);
       });
     }
 
@@ -70,24 +81,30 @@ module.exports = (io) => {
         // 3. Enviar a la API del Profesor de manera asíncrona (fire-and-forget)
         RecorridoRepository.findIdExterno(recorrido_id).then(id_externo => {
           if (id_externo) {
+            // Usamos PERFIL_ID del .env (identidad ante la API del profesor)
             registrarPosicionExterna(id_externo, {
               lat,
               lon,
-              perfil_id: conductor_id
+              perfil_id: process.env.PERFIL_ID
             }).catch(err => {
               console.error('⚠️ Error al enviar posición a la API del profesor:', err.message);
             });
           }
         }).catch(err => console.error('⚠️ Error al buscar id_externo:', err.message));
 
-        // 4. Emitir evento a TODOS los clientes conectados (App Web)
-        io.emit('location:update', {
+        const updateData = {
           conductor_id,
           recorrido_id,
           latitude: lat,
           longitude: lon,
           timestamp
-        });
+        };
+
+        // ⭐ Guardamos la posición en caché para los futuros clientes que se conecten
+        activeTrucksCache.set(conductor_id, updateData);
+
+        // 4. Emitir evento a TODOS los clientes conectados (App Web)
+        io.emit('location:update', updateData);
 
       } catch (error) {
         console.error('❌ Error procesando conductor:location:', error);
@@ -99,6 +116,11 @@ module.exports = (io) => {
       console.log(`🔌 Cliente desconectado [${socket.id}] - Usuario ID: ${socket.user?.id}`);
       
       if (socket.user) {
+        // Si es el conductor quien se desconecta, lo limpiamos de la caché
+        if (activeTrucksCache.has(socket.user.id)) {
+          activeTrucksCache.delete(socket.user.id);
+        }
+
         io.emit('conductor:disconnected', { 
           conductor_id: socket.user.id, 
           timestamp: Date.now() 
