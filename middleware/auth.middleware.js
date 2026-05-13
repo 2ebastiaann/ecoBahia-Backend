@@ -25,4 +25,18 @@ function verificarToken(req, res, next) {
   }
 }
 
-module.exports = { verificarToken };
+/**
+ * Middleware de Control de Acceso Basado en Roles (RBAC).
+ * Debe usarse DESPUÉS de verificarToken.
+ * Solo permite continuar si el usuario tiene rol de Administrador (id_rol = 1).
+ * Roles: 1=Administrador, 2=Conductor, 3=Ciudadano/Anónimo
+ */
+function verificarAdmin(req, res, next) {
+  if (req.user && req.user.id_rol === 1) {
+    next();
+  } else {
+    return res.status(403).json({ error: 'Acceso denegado: Se requiere rol de administrador' });
+  }
+}
+
+module.exports = { verificarToken, verificarAdmin };

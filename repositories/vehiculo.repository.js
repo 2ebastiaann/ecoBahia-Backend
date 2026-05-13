@@ -14,6 +14,19 @@ const VehiculoRepository = {
   },
 
   /**
+   * Buscar vehículo por placa exacta (case-insensitive, para validar duplicados)
+   */
+  async findByPlaca(placa) {
+    const placaNormalizada = placa.trim().toUpperCase();
+    // Busca con la placa normalizada a mayúsculas
+    const resultados = await db.findAll('vehiculos', { filters: { placa: placaNormalizada } });
+    if (resultados.length > 0) return resultados[0];
+    // Busca también con la placa tal como viene (por si se guardó en otro formato)
+    const resultadosOriginal = await db.findAll('vehiculos', { filters: { placa: placa.trim() } });
+    return resultadosOriginal.length > 0 ? resultadosOriginal[0] : null;
+  },
+
+  /**
    * Guardar espejo de vehículo en BD local
    */
   async create({ id_vehiculo, placa, marca, modelo, activo = true }) {

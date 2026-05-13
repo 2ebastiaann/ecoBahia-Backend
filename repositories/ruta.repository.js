@@ -14,6 +14,14 @@ const RutaRepository = {
   },
 
   /**
+   * Buscar ruta por nombre exacto (para validar duplicados)
+   */
+  async findByNombre(nombre) {
+    const resultados = await db.findAll('rutas', { filters: { nombre } });
+    return resultados.length > 0 ? resultados[0] : null;
+  },
+
+  /**
    * Guardar ruta con geometría (shape) en la BD local
    */
   async create({ id_rutas, nombre, color_hex, perfil_id, activo = true, shape = null }) {

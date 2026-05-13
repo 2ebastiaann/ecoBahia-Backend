@@ -33,18 +33,28 @@ async function mostrarVehiculoPorId(req, res) {
 // POST crear
 async function registrarVehiculo(req, res) {
   try {
+    const placa = req.body.placas || req.body.placa;
+
+    // Verificar duplicado de placa en BD local
+    if (placa) {
+      const vehiculoExistente = await VehiculoRepository.findByPlaca(placa.trim().toUpperCase());
+      if (vehiculoExistente) {
+        return res.status(409).json({ mensaje: `Ya existe un vehículo con la placa "${placa}". Las placas deben ser únicas.` });
+      }
+    }
+
     // 1. Guardar en API del Profesor
     const nuevoVehiculo = await crearVehiculo(req.body);
 
     // 2. Extraer el ID generado
-    const idGenerado = nuevoVehiculo.id || nuevoVehiculo.vehiculo_id || req.body.placa;
+    const idGenerado = nuevoVehiculo.id || nuevoVehiculo.vehiculo_id || placa;
 
     // 3. Guardar Espejo en BD local
     if (idGenerado) {
       try {
         await VehiculoRepository.create({
           id_vehiculo: idGenerado,
-          placa: req.body.placas || req.body.placa,
+          placa: placa,
           marca: req.body.marca,
           modelo: req.body.modelo
         });

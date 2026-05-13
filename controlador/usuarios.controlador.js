@@ -5,20 +5,32 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 // ============================================
-// Registrar usuario
+// Registrar usuario (solo admin vía ruta protegida)
 // ============================================
 exports.registrarUsuario = async (req, res) => {
   try {
     const { email, password, id_rol, nombre, apellido } = req.body;
 
+    // Validación de campos obligatorios
     if (!email || !password || !nombre || !apellido) {
-      return res.status(400).json({ error: 'Todos los campos son obligatorios' });
+      return res.status(400).json({ error: 'Todos los campos son obligatorios: email, password, nombre, apellido' });
+    }
+
+    // Validación de formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: 'El formato del email no es válido' });
+    }
+
+    // Validación de longitud de contraseña
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
     }
 
     // Verificar si el usuario ya existe
     const existeUsuario = await UsuarioRepository.existsByEmail(email);
     if (existeUsuario) {
-      return res.status(400).json({ error: 'El usuario ya existe' });
+      return res.status(400).json({ error: 'Ya existe un usuario con ese email' });
     }
 
     // Crear hash de contraseña
@@ -47,9 +59,10 @@ exports.registrarUsuario = async (req, res) => {
 
   } catch (error) {
     console.error("❌ Error registrar usuario:", error);
-    res.status(500).json({ error: 'Error al registrar usuario' });
+    res.status(500).json({ error: 'Error interno al registrar usuario' });
   }
 };
+
 
 
 // ============================================

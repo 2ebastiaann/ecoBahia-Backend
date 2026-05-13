@@ -35,15 +35,32 @@ async function registrarRuta(req, res) {
   }
 
   try {
-    const nuevaRuta = await crearRuta(req.body);
-    
-    // GUARDADO DUAL: BD Local
-    // Podría estar dentro de data.id, id, o id_ruta.
-    const idGenerado = nuevaRuta.data?.id || nuevaRuta.id || nuevaRuta.ruta_id || nuevaRuta.id_ruta || Object.values(nuevaRuta).find(val => typeof val === 'string' && val.length > 30);
-    
-    if (!idGenerado) {
-       console.error('No se pudo encontrar el ID de la ruta en la respuesta de la API:', nuevaRuta);
+    // ── Verificar nombre duplicado contra la API externa (fuente de verdad) ──
+    const rutasExistentes = await obtenerRutas();
+    const lista = Array.isArray(rutasExistentes?.data)
+      ? rutasExistentes.data
+      : Array.isArray(rutasExistentes)
+        ? rutasExistentes
+        : [];
+
+    const nombreNormalizado = nombre_ruta.trim().toLowerCase();
+    const yaExiste = lista.some(r => {
+      const n = (r.nombre_ruta || r.nombre || '').trim().toLowerCase();
+      return n === nombreNormalizado;
+    });
+
+    if (yaExiste) {
+      return res.status(409).json({
+        mensaje: `Ya existe una ruta con el nombre "${nombre_ruta}". Por favor usa un nombre diferente.`
+      });
     }
+
+    // ── Crear en API externa ──
+    const nuevaRuta = await crearRuta(req.body);
+
+    // ── Espejo en BD local ──
+    const idGenerado = nuevaRuta.data?.id || nuevaRuta.id || nuevaRuta.ruta_id || nuevaRuta.id_ruta
+      || Object.values(nuevaRuta).find(val => typeof val === 'string' && val.length > 30);
 
     if (idGenerado) {
       try {
@@ -51,12 +68,12 @@ async function registrarRuta(req, res) {
           id_rutas: idGenerado,
           nombre: nombre_ruta,
           color_hex: req.body.color_hex || '#3388ff',
-          perfil_id: perfil_id,
+          perfil_id,
           activo: true,
           shape: shape || null
         });
       } catch (dbError) {
-        console.error('Error guardando ruta en BD local:', dbError);
+        console.error('Error guardando espejo de ruta en BD local:', dbError);
       }
     }
 
@@ -66,5 +83,6 @@ async function registrarRuta(req, res) {
     res.status(500).json({ mensaje: 'Error al crear ruta', detalle: error.message });
   }
 }
+
 
 module.exports = { listarRutas, mostrarRutaPorId, registrarRuta };

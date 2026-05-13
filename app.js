@@ -1,7 +1,9 @@
 require('dotenv').config();
 
-// Permitir certificados autofirmados o inválidos (necesario para la API del profesor)
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+// ⚠️  SOLO DESARROLLO: desactiva validación de certificados SSL para la API del profesor.
+// NUNCA habilitar en producción — viola la seguridad HTTPS y la Ley 1581.
+// process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 
 const express = require('express');
 const cors = require('cors');
