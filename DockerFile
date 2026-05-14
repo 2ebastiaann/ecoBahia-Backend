@@ -1,4 +1,28 @@
-#Usa una imagen base oficial de Node.js
+# Dockerfile
+# ============================================================
+# EcoBahía Backend — Imagen Node.js
+# ============================================================
+
+# Usa una imagen base oficial de Node.js
 FROM node:18-alpine
 
-WORKDIR C:\Users\User\sistema-backend
+# Instalar dependencias del sistema para bcrypt (compilación nativa)
+RUN apk add --no-cache python3 make g++
+
+# Directorio de trabajo dentro del contenedor
+WORKDIR /app
+
+# Copiar archivos de dependencias primero (cache de capas Docker)
+COPY package.json package-lock.json ./
+
+# Instalar dependencias (incluye devDependencies para nodemon)
+RUN npm ci
+
+# Copiar el resto del código fuente
+COPY . .
+
+# Puerto expuesto (debe coincidir con PORT del .env)
+EXPOSE 3007
+
+# Comando por defecto: desarrollo con nodemon
+CMD ["npx", "nodemon", "server.js"]

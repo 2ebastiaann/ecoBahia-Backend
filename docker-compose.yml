@@ -1,0 +1,60 @@
+# docker-compose.yml
+# ============================================================
+# EcoBahía Backend — Docker Compose
+# ============================================================
+# Servicios:
+#   1. postgres  → PostgreSQL 16 + PostGIS 3.4
+#   2. backend   → Node.js API + Socket.IO
+# ============================================================
+
+services:
+  # ──────────────────────────────────────────────
+  # 🐘 PostgreSQL con PostGIS
+  # ──────────────────────────────────────────────
+  postgres:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: ecobahia-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-ecobahia}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ecobahia_secret_2026}
+      POSTGRES_DB: ${DB_NAME:-ecobahia_db}
+    ports:
+      - "${DB_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-ecobahia} -d ${DB_NAME:-ecobahia_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ──────────────────────────────────────────────
+  # 🚀 Backend Node.js
+  # ──────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ecobahia-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Sobreescribe DB_HOST para apuntar al servicio postgres dentro de Docker
+      DB_HOST: postgres
+      # El backend debe usar el puerto interno de postgres (5432), no el mapeado al host (5433)
+      DB_PORT: 5432
+    ports:
+      - "${PORT:-3007}:${PORT:-3007}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      # Bind mount para hot-reload en desarrollo (nodemon)
+      - .:/app
+      - /app/node_modules
+
+volumes:
+  pgdata:
+    driver: local

@@ -23,15 +23,23 @@ const io = new Server(server, {
   }
 });
 
+// Exponer io a toda la app Express
+app.set('socketio', io);
+
 // Configurar WebSockets para tracking
 trackingSocket(io);
 
 // ===============================
-// 🚀 INICIAR BACKEND CON SUPABASE + WEBSOCKETS
+// 🚀 INICIAR BACKEND CON POSTGRESQL + WEBSOCKETS
 // ===============================
+const db = require('./config/database');
+
 (async () => {
     try {
-        console.log('🚀 Iniciando backend con Supabase y Socket.IO...');
+        console.log('🚀 Iniciando backend con PostgreSQL y Socket.IO...');
+
+        // Verificar conexión a PostgreSQL
+        await db.testConnection();
 
         // ATENCIÓN: 0.0.0.0 permite recibir tráfico externo
         server.listen(PORT, '0.0.0.0', () => {

@@ -20,7 +20,9 @@ app.use(cors({
     credentials: true
 }));
 
-app.use(express.json());
+// Aumentamos el límite del body a 10mb para permitir las imágenes en base64 de los reportes
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Importar rutas
 app.use('/api/rutas', require('./routes/ruta.routes'));
@@ -29,8 +31,8 @@ app.use('/api/calles', require('./routes/calles.routes'));
 app.use('/api/vehiculos', require('./routes/vehiculos.routes'));
 app.use('/api/recorridos', require('./routes/recorridos.routes'));
 app.use('/api/asignaciones', require('./routes/asignaciones.routes'));
-app.use('/api/recorridos_locales', require('./routes/recorridos_locales.routes'));
 app.use('/api/ubicaciones', require('./routes/ubicaciones.routes'));
+app.use('/api/reportes', require('./routes/reportes.routes'));
 
 // Endpoint raíz
 app.get('/', (req, res) => {
