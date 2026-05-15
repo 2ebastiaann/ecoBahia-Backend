@@ -31,7 +31,7 @@ const RecorridoRepository = {
    */
   async findById(id) {
     return db.findOne('recorridos', {
-      columns: 'id, activo',
+      columns: '*',
       filters: { id }
     });
   },

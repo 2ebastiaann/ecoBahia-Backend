@@ -40,27 +40,9 @@ async function registrarInicioRecorrido(req, res) {
       return res.status(400).json({ mensaje: 'Uno de los elementos (Conductor, Vehículo o Ruta) ya está ocupado en un recorrido activo.' });
     }
 
-    // 2. Guardar en BD local
-    const nuevo = await RecorridoRepository.create({ ruta_id, vehiculo_id, perfil_id, activo: true });
-    console.log('✅ Recorrido guardado en BD:', nuevo.id);
-
-    // 3. Enviar a la API Externa
-    try {
-      const responseApi = await iniciarRecorrido({
-        ruta_id,
-        vehiculo_id,
-        perfil_id: process.env.PERFIL_ID
-      });
-      console.log('✅ Recorrido iniciado en API externa.');
-      
-      const id_externo = responseApi.id || responseApi.data?.id || responseApi.recorrido?.id || null;
-      if (id_externo) {
-        await RecorridoRepository.updateExterno(nuevo.id, id_externo);
-        console.log(`✅ Guardado id_externo (${id_externo}) para el recorrido local ${nuevo.id}`);
-      }
-    } catch (apiError) {
-      console.error('⚠️ La API externa devolvió un error:', apiError.message);
-    }
+    // 2. Guardar en BD local (Inactivo por defecto)
+    const nuevo = await RecorridoRepository.create({ ruta_id, vehiculo_id, perfil_id, activo: false });
+    console.log('✅ Recorrido asignado en BD local (inactivo):', nuevo.id);
 
     res.status(201).json(nuevo);
   } catch (error) {
@@ -134,8 +116,29 @@ async function activarRecorrido(req, res) {
     if (!recorridoActual) return res.status(404).json({ mensaje: 'Recorrido no encontrado' });
     if (recorridoActual.activo) return res.status(400).json({ mensaje: 'El recorrido ya está activo' });
 
+    // 1. Activar localmente
     const activado = await RecorridoRepository.activar(id);
-    res.json({ mensaje: 'Recorrido activado', recorrido: activado });
+    console.log(`✅ Recorrido ${id} activado localmente.`);
+
+    // 2. Notificar a la API externa (El profesor)
+    try {
+      const responseApi = await iniciarRecorrido({
+        ruta_id: recorridoActual.ruta_id,
+        vehiculo_id: recorridoActual.vehiculo_id,
+        perfil_id: process.env.PERFIL_ID
+      });
+      console.log('✅ Recorrido iniciado en API externa.');
+      
+      const id_externo = responseApi.id || responseApi.data?.id || responseApi.recorrido?.id || null;
+      if (id_externo) {
+        await RecorridoRepository.updateExterno(id, id_externo);
+        console.log(`✅ Guardado id_externo (${id_externo}) para el recorrido local ${id}`);
+      }
+    } catch (apiError) {
+      console.error('⚠️ La API externa devolvió un error al activar:', apiError.message);
+    }
+
+    res.json({ mensaje: 'Recorrido activado y sincronizado', recorrido: activado });
   } catch (error) {
     console.error('❌ ERROR PUT activar recorrido:', error);
     res.status(500).json({ mensaje: 'Error al activar', detalle: error.message });
