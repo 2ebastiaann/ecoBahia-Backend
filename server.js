@@ -42,6 +42,7 @@ const db = require('./config/database');
         await db.testConnection();
 
         // ATENCIÓN: 0.0.0.0 permite recibir tráfico externo
+        // server.js - Entry point del Backend (Trigger deploy)
         server.listen(PORT, '0.0.0.0', () => {
             console.log(`🟢 Servidor corriendo en http://0.0.0.0:${PORT}`);
             console.log(`🌐 API y WebSockets listos externamente en :${PORT}`);
