@@ -9,9 +9,11 @@
     "db:migrate": "npx sequelize-cli db:migrate",
     "db:migrate:undo": "npx sequelize-cli db:migrate:undo",
     "db:migrate:undo:all": "npx sequelize-cli db:migrate:undo:all",
-    "db:migrate:status": "npx sequelize-cli db:migrate:status"
+    "db:migrate:status": "npx sequelize-cli db:migrate:status",
+    "postinstall": "npm rebuild sharp"
   },
   "dependencies": {
+    "@turf/turf": "^7.3.5",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -19,6 +21,7 @@
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.16.3",
     "sequelize": "^6.37.7",
+    "sharp": "^0.34.5",
     "socket.io": "^4.8.3",
     "ssh2": "^1.17.0"
   },

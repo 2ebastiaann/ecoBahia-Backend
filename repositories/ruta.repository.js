@@ -14,6 +14,14 @@ const RutaRepository = {
   },
 
   /**
+   * Buscar ruta por ID
+   */
+  async findById(id) {
+    const resultados = await db.findAll('rutas', { filters: { id_rutas: id } });
+    return resultados.length > 0 ? resultados[0] : null;
+  },
+
+  /**
    * Buscar ruta por nombre exacto (para validar duplicados)
    */
   async findByNombre(nombre) {

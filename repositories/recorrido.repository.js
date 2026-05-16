@@ -61,6 +61,13 @@ const RecorridoRepository = {
   },
 
   /**
+   * Actualizar porcentaje de progreso
+   */
+  async updateProgreso(id, porcentaje_progreso) {
+    return db.update('recorridos', { id }, { porcentaje_progreso });
+  },
+
+  /**
    * Desactivar un recorrido (activo = false)
    */
   async desactivar(id) {

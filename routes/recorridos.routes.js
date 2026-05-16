@@ -8,7 +8,7 @@ const {
   registrarFinalizacionRecorrido, 
   activarRecorrido 
 } = require('../controlador/recorridos.controlador');
-const { registrarPosicion } = require('../controlador/ubicaciones.controlador');
+const { registrarPosicion, subirImagenPosicion, obtenerImagenPosicion, obtenerFotosRecorrido } = require('../controlador/ubicaciones.controlador');
 
 // Consultas
 router.get('/', verificarToken, listarRecorridos);
@@ -21,5 +21,8 @@ router.post('/:id/activar', verificarToken, activarRecorrido);
 
 // Posiciones asociadas al recorrido
 router.post('/:recorrido_id/posiciones', verificarToken, registrarPosicion);
+router.post('/posiciones/:posicion_id/imagen', verificarToken, subirImagenPosicion);
+router.get('/posiciones/:posicion_id/imagen', verificarToken, obtenerImagenPosicion);
+router.get('/:recorrido_id/fotos', verificarToken, obtenerFotosRecorrido);
 
 module.exports = router;

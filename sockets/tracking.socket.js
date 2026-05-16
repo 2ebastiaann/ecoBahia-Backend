@@ -2,10 +2,15 @@
 const jwt = require('jsonwebtoken');
 const PosicionRepository = require('../repositories/posicion.repository');
 const RecorridoRepository = require('../repositories/recorrido.repository');
+const RutaRepository = require('../repositories/ruta.repository');
+const turf = require('@turf/turf');
 const { registrarPosicionExterna } = require('../services/apiRecoleccion/recorridos.service');
+const apiRutas = require('../services/apiRecoleccion/rutas.service');
 
 // Caché en memoria para guardar la última posición conocida de los conductores activos
 const activeTrucksCache = new Map();
+// Caché en memoria para rutas de la API externa
+const externalRoutesCache = new Map();
 
 module.exports = (io) => {
   // Middleware de autenticación para Socket.IO
@@ -78,6 +83,68 @@ module.exports = (io) => {
           recorrido_id
         });
 
+        // ============================================
+        // CALCULO DE PROGRESO CON TURF.JS
+        // ============================================
+        let porcentajeCalculado = 0;
+        try {
+          const recorrido = await RecorridoRepository.findById(recorrido_id);
+          if (recorrido && recorrido.ruta_id) {
+            let rutaShape = null;
+
+            // 1. Intentar en la base de datos local
+            const rutaDb = await RutaRepository.findById(recorrido.ruta_id);
+            if (rutaDb && rutaDb.shape && rutaDb.shape.coordinates) {
+              rutaShape = rutaDb.shape;
+            } 
+            // 2. Intentar en caché de memoria (si ya se pidió a la API antes)
+            else if (externalRoutesCache.has(recorrido.ruta_id)) {
+              rutaShape = externalRoutesCache.get(recorrido.ruta_id);
+            } 
+            // 3. Si no está, consultar a la API externa
+            else {
+              try {
+                const apiRuta = await apiRutas.obtenerRutaPorId(recorrido.ruta_id);
+                // Aseguramos que tenga un shape válido (algunas APIs devuelven data en anidamientos)
+                const shapeRecibido = apiRuta.shape || (apiRuta.data && apiRuta.data.shape);
+                
+                if (shapeRecibido && shapeRecibido.coordinates) {
+                  rutaShape = shapeRecibido;
+                  externalRoutesCache.set(recorrido.ruta_id, rutaShape); // Guardar en caché para futuros sockets
+                  console.log(`✅ Ruta ${recorrido.ruta_id} obtenida de la API externa y cacheada.`);
+                }
+              } catch (apiError) {
+                console.warn(`⚠️ No se pudo obtener la ruta ${recorrido.ruta_id} de la API externa para el progreso.`);
+              }
+            }
+
+            // Si logramos obtener las coordenadas de la ruta por cualquier medio:
+            if (rutaShape && rutaShape.coordinates && rutaShape.coordinates.length > 1) {
+              const lineaRuta = turf.lineString(rutaShape.coordinates);
+              const puntoActual = turf.point([lon, lat]); // Turf espera [lng, lat]
+              
+              const snapped = turf.nearestPointOnLine(lineaRuta, puntoActual);
+              const startPoint = turf.point(rutaShape.coordinates[0]);
+              const sliced = turf.lineSlice(startPoint, snapped, lineaRuta);
+              
+              const distanciaTotal = turf.length(lineaRuta, { units: 'meters' });
+              const distanciaRecorrida = turf.length(sliced, { units: 'meters' });
+              
+              if (distanciaTotal > 0) {
+                porcentajeCalculado = (distanciaRecorrida / distanciaTotal) * 100;
+                if (porcentajeCalculado > 100) porcentajeCalculado = 100;
+                if (porcentajeCalculado < 0) porcentajeCalculado = 0;
+                
+                // Actualizar en base de datos local
+                await RecorridoRepository.updateProgreso(recorrido_id, porcentajeCalculado);
+              }
+            }
+          }
+        } catch (errorTurf) {
+          console.error('⚠️ Error calculando progreso con Turf.js:', errorTurf.message);
+        }
+        // ============================================
+
         // 3. Enviar a la API del Profesor de manera asíncrona (fire-and-forget)
         RecorridoRepository.findIdExterno(recorrido_id).then(id_externo => {
           if (id_externo) {
@@ -97,7 +164,8 @@ module.exports = (io) => {
           recorrido_id,
           latitude: lat,
           longitude: lon,
-          timestamp
+          timestamp,
+          porcentaje_progreso: parseFloat(porcentajeCalculado.toFixed(2))
         };
 
         // ⭐ Guardamos la posición en caché para los futuros clientes que se conecten

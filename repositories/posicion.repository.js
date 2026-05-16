@@ -88,6 +88,38 @@ const PosicionRepository = {
     }
 
     return insertados;
+  },
+
+  /**
+   * Actualizar la imagen de una posición específica
+   * @param {string} posicion_id - UUID de la posición
+   * @param {string} imagen_base64 - Imagen en Base64
+   * @returns {Promise<object|null>} Posición actualizada
+   */
+  async updateImagen(posicion_id, imagen_base64) {
+    const updateResult = await db.query(
+      `UPDATE posiciones SET imagen_base64 = $1 WHERE id = $2 RETURNING *`,
+      [imagen_base64, posicion_id]
+    );
+
+    if (updateResult.rows.length === 0) {
+      return null;
+    }
+
+    return updateResult.rows[0];
+  },
+
+  /**
+   * Obtiene todas las posiciones que tienen foto para un recorrido
+   * @param {string} recorrido_id
+   * @returns {Promise<Array>}
+   */
+  async findFotosByRecorrido(recorrido_id) {
+    const result = await db.query(
+      `SELECT id, lat, lon, capturado_ts FROM posiciones WHERE recorrido_id = $1 AND imagen_base64 IS NOT NULL ORDER BY capturado_ts ASC`,
+      [recorrido_id]
+    );
+    return result.rows;
   }
 };
 
