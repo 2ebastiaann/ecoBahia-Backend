@@ -98,7 +98,7 @@ const PosicionRepository = {
    */
   async updateImagen(posicion_id, imagen_base64) {
     const updateResult = await db.query(
-      `UPDATE posiciones SET imagen_base64 = $1 WHERE id = $2 RETURNING *`,
+      `UPDATE posiciones SET imagen_base64 = $1 WHERE id_posiciones = $2 RETURNING *`,
       [imagen_base64, posicion_id]
     );
 
@@ -116,7 +116,7 @@ const PosicionRepository = {
    */
   async findFotosByRecorrido(recorrido_id) {
     const result = await db.query(
-      `SELECT id, lat, lon, capturado_ts FROM posiciones WHERE recorrido_id = $1 AND imagen_base64 IS NOT NULL ORDER BY capturado_ts ASC`,
+      `SELECT id_posiciones AS id, lat, lon, capturado_ts FROM posiciones WHERE recorrido_id = $1 AND imagen_base64 IS NOT NULL ORDER BY capturado_ts ASC`,
       [recorrido_id]
     );
     return result.rows;

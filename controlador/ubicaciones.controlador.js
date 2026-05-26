@@ -161,7 +161,7 @@ async function subirImagenPosicion(req, res) {
     const io = req.app.get('socketio');
     if (io) {
       io.emit('location:photo', {
-        posicion_id: posicionActualizada.id,
+        posicion_id: posicionActualizada.id_posiciones || posicionActualizada.id,
         recorrido_id: posicionActualizada.recorrido_id,
         lat: posicionActualizada.lat,
         lon: posicionActualizada.lon,
@@ -193,7 +193,7 @@ async function obtenerImagenPosicion(req, res) {
   try {
     const db = require('../config/database');
     const result = await db.query(
-      `SELECT imagen_base64 FROM posiciones WHERE id = $1`,
+      `SELECT imagen_base64 FROM posiciones WHERE id_posiciones = $1`,
       [posicion_id]
     );
 
