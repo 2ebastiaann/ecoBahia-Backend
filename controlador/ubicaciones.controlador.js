@@ -1,4 +1,6 @@
 const PosicionRepository = require('../repositories/posicion.repository');
+const RecorridoRepository = require('../repositories/recorrido.repository');
+const { registrarPosicionExterna, subirImagenPosicionExterna } = require('../services/apiRecoleccion/recorridos.service');
 const sharp = require('sharp');
 
 /**
@@ -17,7 +19,42 @@ async function registrarPosicion(req, res) {
   }
 
   try {
-    const nuevaPosicion = await PosicionRepository.create({ lat, lon, perfil_id, recorrido_id });
+    // 1. Intentar registrar la posición en la API del profesor si existe un ID externo para este recorrido
+    const id_externo = await RecorridoRepository.findIdExterno(recorrido_id);
+    let idPosicionExterna = null;
+
+    if (id_externo) {
+      try {
+        const extResponse = await registrarPosicionExterna(id_externo, {
+          lat,
+          lon,
+          perfil_id: process.env.PERFIL_ID || perfil_id
+        });
+        
+        // Extraer el ID de posición devuelto por la API del profesor
+        idPosicionExterna = extResponse?.id || 
+                            extResponse?.data?.id || 
+                            extResponse?.id_posiciones || 
+                            extResponse?.data?.id_posiciones || 
+                            extResponse?.id_posicion || 
+                            extResponse?.data?.id_posicion || 
+                            extResponse?.posicion_id || 
+                            extResponse?.data?.posicion_id;
+        
+        console.log(`✅ Posición registrada en la API del profesor. ID: ${idPosicionExterna}`);
+      } catch (errEx) {
+        console.error('⚠️ Error al registrar posición en la API externa del profesor:', errEx.message);
+      }
+    }
+
+    // 2. Registrar en la base de datos local (usando el mismo UUID si lo obtuvimos del backend externo)
+    const nuevaPosicion = await PosicionRepository.create({ 
+      lat, 
+      lon, 
+      perfil_id, 
+      recorrido_id,
+      id_posiciones: idPosicionExterna
+    });
     
     res.status(201).json({
       success: true,
@@ -155,6 +192,14 @@ async function subirImagenPosicion(req, res) {
 
     if (!posicionActualizada) {
       return res.status(404).json({ success: false, message: 'La posición no existe' });
+    }
+
+    // 4.5. Intentar subir la imagen procesada a la API externa del profesor
+    try {
+      await subirImagenPosicionExterna(posicion_id, finalWebpBase64);
+      console.log(`✅ Imagen subida a la API del profesor para la posición: ${posicion_id}`);
+    } catch (errEx) {
+      console.error(`⚠️ Error al subir la imagen a la API externa del profesor para la posición ${posicion_id}:`, errEx.message);
     }
 
     // 5. Emitir evento por WebSocket para que el panel web de Admin se entere

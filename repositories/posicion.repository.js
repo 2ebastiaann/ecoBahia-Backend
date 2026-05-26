@@ -30,7 +30,7 @@ const PosicionRepository = {
    * @param {object} datos - { lat, lon, perfil_id, recorrido_id }
    * @returns {Promise<object>} Registro insertado
    */
-  async create({ lat, lon, perfil_id, recorrido_id }) {
+  async create({ lat, lon, perfil_id, recorrido_id, id_posiciones = null }) {
     const record = {
       lat,
       lon,
@@ -39,6 +39,9 @@ const PosicionRepository = {
       geom: buildGeoJsonPoint(lon, lat),
       capturado_ts: new Date().toISOString()
     };
+    if (id_posiciones) {
+      record.id_posiciones = id_posiciones;
+    }
     return db.insert('posiciones', record);
   },
 

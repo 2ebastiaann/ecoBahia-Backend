@@ -19,4 +19,10 @@ async function registrarPosicionExterna(recorrido_id, datosPosicion) {
   return apiPost(`${API_BASE_URL}/recorridos/${recorrido_id}/posiciones`, datosPosicion);
 }
 
-module.exports = { iniciarRecorrido, finalizarRecorrido, registrarPosicionExterna };
+async function subirImagenPosicionExterna(posicion_id, imagen_base64) {
+  return apiPost(`${API_BASE_URL}/recorridos/posiciones/${posicion_id}/imagen`, {
+    imagen_base64
+  });
+}
+
+module.exports = { iniciarRecorrido, finalizarRecorrido, registrarPosicionExterna, subirImagenPosicionExterna };
