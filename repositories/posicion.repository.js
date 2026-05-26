@@ -97,16 +97,16 @@ const PosicionRepository = {
    * @returns {Promise<object|null>} Posición actualizada
    */
   async updateImagen(posicion_id, imagen_base64) {
-    const updateResult = await db.query(
+    const rows = await db.query(
       `UPDATE posiciones SET imagen_base64 = $1 WHERE id_posiciones = $2 RETURNING *`,
       [imagen_base64, posicion_id]
     );
 
-    if (updateResult.rows.length === 0) {
+    if (!rows || rows.length === 0) {
       return null;
     }
 
-    return updateResult.rows[0];
+    return rows[0];
   },
 
   /**
@@ -115,11 +115,11 @@ const PosicionRepository = {
    * @returns {Promise<Array>}
    */
   async findFotosByRecorrido(recorrido_id) {
-    const result = await db.query(
+    const rows = await db.query(
       `SELECT id_posiciones AS id, lat, lon, capturado_ts FROM posiciones WHERE recorrido_id = $1 AND imagen_base64 IS NOT NULL ORDER BY capturado_ts ASC`,
       [recorrido_id]
     );
-    return result.rows;
+    return rows;
   }
 };
 

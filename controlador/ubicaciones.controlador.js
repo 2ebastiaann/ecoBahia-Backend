@@ -192,16 +192,16 @@ async function obtenerImagenPosicion(req, res) {
 
   try {
     const db = require('../config/database');
-    const result = await db.query(
+    const rows = await db.query(
       `SELECT imagen_base64 FROM posiciones WHERE id_posiciones = $1`,
       [posicion_id]
     );
 
-    if (result.rows.length === 0 || !result.rows[0].imagen_base64) {
+    if (!rows || rows.length === 0 || !rows[0].imagen_base64) {
       return res.status(404).json({ success: false, message: 'Imagen no encontrada' });
     }
 
-    const imagenBase64 = result.rows[0].imagen_base64;
+    const imagenBase64 = rows[0].imagen_base64;
     
     // Extraer los datos reales del base64 (quitando data:image/webp;base64,)
     let base64Data = imagenBase64;
