@@ -46,11 +46,20 @@ const PosicionRepository = {
   },
 
   /**
-   * Obtener todas las posiciones de un recorrido, ordenadas cronológicamente
+   * Obtener todas las posiciones de un recorrido, ordenadas cronológicamente y filtradas por sesión
    * @param {string} recorrido_id - UUID del recorrido
+   * @param {string|null} desde - ISO timestamp de inicio de sesión
    * @returns {Promise<Array>}
    */
-  async findByRecorrido(recorrido_id) {
+  async findByRecorrido(recorrido_id, desde = null) {
+    if (desde) {
+      return db.query(
+        `SELECT * FROM posiciones 
+         WHERE recorrido_id = $1 AND capturado_ts >= $2 
+         ORDER BY capturado_ts ASC`,
+        [recorrido_id, desde]
+      );
+    }
     return db.findAll('posiciones', {
       filters: { recorrido_id },
       order: { column: 'capturado_ts', ascending: true }
@@ -113,13 +122,30 @@ const PosicionRepository = {
   },
 
   /**
-   * Obtiene todas las posiciones que tienen foto para un recorrido
+   * Obtiene las posiciones con foto para un recorrido, filtradas desde el inicio de la sesión actual.
    * @param {string} recorrido_id
+   * @param {string|null} desde - ISO timestamp de inicio de sesión. Si se pasa, filtra fotos desde ese momento.
    * @returns {Promise<Array>}
    */
-  async findFotosByRecorrido(recorrido_id) {
+  async findFotosByRecorrido(recorrido_id, desde = null) {
+    if (desde) {
+      const rows = await db.query(
+        `SELECT id_posiciones AS id, lat, lon, capturado_ts
+         FROM posiciones
+         WHERE recorrido_id = $1
+           AND imagen_base64 IS NOT NULL
+           AND capturado_ts >= $2
+         ORDER BY capturado_ts ASC`,
+        [recorrido_id, desde]
+      );
+      return rows;
+    }
+    // Si no hay fecha de sesión (recorridos muy viejos sin el campo), devuelve todas.
     const rows = await db.query(
-      `SELECT id_posiciones AS id, lat, lon, capturado_ts FROM posiciones WHERE recorrido_id = $1 AND imagen_base64 IS NOT NULL ORDER BY capturado_ts ASC`,
+      `SELECT id_posiciones AS id, lat, lon, capturado_ts
+       FROM posiciones
+       WHERE recorrido_id = $1 AND imagen_base64 IS NOT NULL
+       ORDER BY capturado_ts ASC`,
       [recorrido_id]
     );
     return rows;

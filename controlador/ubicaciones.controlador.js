@@ -73,13 +73,17 @@ async function registrarPosicion(req, res) {
 
 /**
  * 2. GET /api/ubicaciones/recorrido/:recorrido_id
- * Devolver todas las posiciones de un recorrido.
+ * Devolver todas las posiciones de un recorrido filtradas por la sesión actual (sesion_inicio).
  */
 async function historialRecorrido(req, res) {
   const { recorrido_id } = req.params;
 
   try {
-    const posiciones = await PosicionRepository.findByRecorrido(recorrido_id);
+    // Obtener el timestamp de inicio de la sesión actual del recorrido
+    const recorrido = await RecorridoRepository.findById(recorrido_id);
+    const sesionInicio = recorrido?.sesion_inicio || null;
+
+    const posiciones = await PosicionRepository.findByRecorrido(recorrido_id, sesionInicio);
     res.json({ success: true, data: posiciones });
   } catch (error) {
     console.error('❌ ERROR historialRecorrido:', error);
@@ -273,13 +277,18 @@ async function obtenerImagenPosicion(req, res) {
 
 /**
  * 7. GET /api/recorridos/:recorrido_id/fotos
- * Obtiene la lista de posiciones que contienen fotos para un recorrido específico.
+ * Obtiene la lista de posiciones que tienen fotos para el recorrido,
+ * filtradas desde el inicio de la sesión actual (sesion_inicio).
  */
 async function obtenerFotosRecorrido(req, res) {
   const { recorrido_id } = req.params;
 
   try {
-    const fotos = await PosicionRepository.findFotosByRecorrido(recorrido_id);
+    // Obtener el timestamp de inicio de la sesión actual del recorrido
+    const recorrido = await RecorridoRepository.findById(recorrido_id);
+    const sesionInicio = recorrido?.sesion_inicio || null;
+
+    const fotos = await PosicionRepository.findFotosByRecorrido(recorrido_id, sesionInicio);
     res.status(200).json({ success: true, data: fotos });
   } catch (error) {
     console.error('❌ ERROR obtenerFotosRecorrido:', error);

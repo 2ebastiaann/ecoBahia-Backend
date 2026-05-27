@@ -78,7 +78,8 @@ const RecorridoRepository = {
    * Activar un recorrido (activo = true)
    */
   async activar(id) {
-    return db.update('recorridos', { id }, { activo: true });
+    // Guardamos el timestamp exacto de inicio de sesión para filtrar fotos por sesión
+    return db.update('recorridos', { id }, { activo: true, sesion_inicio: new Date().toISOString() });
   },
 
   /**

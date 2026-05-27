@@ -116,7 +116,7 @@ async function activarRecorrido(req, res) {
     if (!recorridoActual) return res.status(404).json({ mensaje: 'Recorrido no encontrado' });
     if (recorridoActual.activo) return res.status(400).json({ mensaje: 'El recorrido ya está activo' });
 
-    // 1. Activar localmente
+    // 1. Activar localmente (guardando la fecha de inicio de la sesión actual)
     const activado = await RecorridoRepository.activar(id);
     console.log(`✅ Recorrido ${id} activado localmente.`);
 
