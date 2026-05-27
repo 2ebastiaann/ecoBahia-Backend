@@ -92,7 +92,7 @@ exports.logearUsuario = async (req, res) => {
     const token = jwt.sign(
       { id: usuario.id_usuario, id_rol: usuario.id_rol },
       process.env.JWT_SECRET,
-      { expiresIn: '2h' }
+      { expiresIn: '7d' }
     );
 
     res.json({
@@ -194,7 +194,7 @@ exports.logearConductor = async (req, res) => {
     const token = jwt.sign(
       { id: usuario.id_usuario, id_rol: usuario.id_rol },
       process.env.JWT_SECRET,
-      { expiresIn: '8h' }
+      { expiresIn: '30d' }
     );
 
     res.json({
