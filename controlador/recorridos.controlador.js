@@ -143,6 +143,21 @@ async function activarRecorrido(req, res) {
       console.error('⚠️ La API externa devolvió un error al activar:', apiError.message);
     }
 
+    const io = req.app.get('socketio');
+    if (io) {
+      io.emit('recorrido:iniciado', {
+        id_recorrido: id,
+        id: id,
+        ruta_id: recorridoActual.ruta_id,
+        vehiculo_id: recorridoActual.vehiculo_id,
+        conductor_id: recorridoActual.perfil_id,
+        activo: true,
+        estado: 'en_curso',
+        creado_en: activado.creado_en || new Date().toISOString()
+      });
+      console.log(`📡 Broadcast 'recorrido:iniciado' para el recorrido ${id}`);
+    }
+
     res.json({ mensaje: 'Recorrido activado y sincronizado', recorrido: activado });
   } catch (error) {
     console.error('❌ ERROR PUT activar recorrido:', error);
