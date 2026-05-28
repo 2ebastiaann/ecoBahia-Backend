@@ -98,6 +98,11 @@ async function registrarFinalizacionRecorrido(req, res) {
       }
     }
 
+    const io = req.app.get('socketio');
+    if (io) {
+      io.emit('recorrido:finalizado', { recorrido_id: id });
+    }
+
     res.json({
       mensaje: 'Recorrido finalizado exitosamente',
       api_response: recorridoFinalizadoApi || { status: 'Finalizado solo localmente' }
