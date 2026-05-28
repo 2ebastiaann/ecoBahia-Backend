@@ -10,14 +10,22 @@ const cors = require('cors');
 
 const app = express();
 
-// Orígenes CORS desde variable de entorno
-const corsOrigins = process.env.CORS_ORIGINS
+// Orígenes CORS permitidos explícitamente (producción)
+const allowedOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
-  : ['http://localhost:4200', 'http://localhost:8100'];
+  : [];
 
+// Función dinámica de CORS:
+// — Cualquier localhost (sin importar el puerto) se permite en desarrollo.
+// — En producción valida contra la lista CORS_ORIGINS del entorno Railway.
 app.use(cors({
-    origin: corsOrigins,
-    credentials: true
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true); // Postman / Capacitor nativo
+    if (/^http:\/\/localhost(:\d+)?$/.test(origin)) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS bloqueado para el origen: ${origin}`));
+  },
+  credentials: true
 }));
 
 // Aumentamos el límite del body a 10mb para permitir las imágenes en base64 de los reportes
@@ -36,10 +44,10 @@ app.use('/api/reportes', require('./routes/reportes.routes'));
 
 // Endpoint raíz
 app.get('/', (req, res) => {
-    res.json({
-        message: 'Bienvenido al Servidor Express EcoBahía',
-        version: '1.0.0'
-    });
+  res.json({
+    message: 'Bienvenido al Servidor Express EcoBahía',
+    version: '1.0.0'
+  });
 });
 
 module.exports = app;

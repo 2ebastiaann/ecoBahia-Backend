@@ -9,15 +9,22 @@ const PORT = process.env.PORT || 3007;
 // Crear servidor HTTP usando Express
 const server = http.createServer(app);
 
-// Configurar CORS desde variable de entorno o defaults
-const corsOrigins = process.env.CORS_ORIGINS
+// Orígenes CORS permitidos explícitamente (producción)
+const allowedOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
-  : ['http://localhost:4200', 'http://localhost:8100'];
+  : [];
+
+const corsOriginFn = (origin, callback) => {
+  if (!origin) return callback(null, true);
+  if (/^http:\/\/localhost(:\d+)?$/.test(origin)) return callback(null, true);
+  if (allowedOrigins.includes(origin)) return callback(null, true);
+  callback(new Error(`CORS bloqueado para el origen: ${origin}`));
+};
 
 // Inicializar Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: corsOrigins,
+    origin: corsOriginFn,
     methods: ["GET", "POST"],
     credentials: true
   }
