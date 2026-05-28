@@ -10,6 +10,9 @@ router.post('/login', usuarioControlador.logearUsuario);
 // POST /api/usuarios/login-conductor — Público: inicio de sesión conductor (móvil)
 router.post('/login-conductor', usuarioControlador.logearConductor);
 
+// POST /api/usuarios/sesion-anonima — Público: generar token automático para ciudadanos
+router.post('/sesion-anonima', usuarioControlador.generarSesionAnonima);
+
 // POST /api/usuarios/register — Protegido: solo admin puede registrar nuevos usuarios
 router.post('/register', verificarToken, verificarAdmin, usuarioControlador.registrarUsuario);
 

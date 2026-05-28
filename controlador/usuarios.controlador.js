@@ -234,3 +234,36 @@ exports.obtenerPerfil = async (req, res) => {
     res.status(500).json({ error: 'Error al obtener perfil' });
   }
 };
+
+// ============================================
+// Generar sesión anónima (para ciudadanos, id_rol=3)
+// ============================================
+exports.generarSesionAnonima = async (req, res) => {
+  try {
+    const idAnonimo = 'anon_' + Math.random().toString(36).substring(2, 15);
+    
+    // Crear token con id_rol = 3 (ciudadano)
+    const token = jwt.sign(
+      { id: idAnonimo, id_rol: 3 },
+      process.env.JWT_SECRET,
+      { expiresIn: '365d' }
+    );
+
+    res.json({
+      ok: true,
+      token,
+      usuario: {
+        id_usuario: idAnonimo,
+        email: 'anonimo@ecobahia.com',
+        id_rol: 3,
+        nombre: 'Ciudadano',
+        apellido: 'Anónimo'
+      }
+    });
+
+  } catch (error) {
+    console.error("❌ Error generar sesión anónima:", error);
+    res.status(500).json({ error: 'Error al generar sesión anónima' });
+  }
+};
+
